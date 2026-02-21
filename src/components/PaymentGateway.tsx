@@ -67,13 +67,10 @@ export function PaymentGateway({ open, onOpenChange, onPaymentSuccess }: Payment
                 throw new Error("Failed to fetch wallet: " + fetchError.message)
             }
 
-            const currentBalance = wallet?.available_balance || 0
-            const newBalance = currentBalance + paymentAmount
-
-            // Use secure RPC to create/update wallet (avoids RLS insertion issues)
+            // Use secure RPC with a delta so we increment balances server-side
             const { error: rpcError } = await supabase.rpc("create_or_update_wallet", {
                 p_user_id: session?.user?.id,
-                p_available_balance: newBalance,
+                p_amount_delta: paymentAmount,
                 p_locked_balance: wallet?.locked_balance || 0,
             })
 

@@ -27,6 +27,7 @@ function App() {
               <Route path="tasks" element={<TaskFeed />} />
               <Route path="tasks/create" element={<CreateTask />} />
               <Route path="tasks/:id" element={<TaskDetails />} />
+              <Route path="chat/:id" element={<Chat />} />
               <Route path="chat/:id/:receiverId" element={<Chat />} />
               <Route path="wallet" element={<Wallet />} />
               <Route path="*" element={<NotFound />} />

@@ -102,11 +102,10 @@ export function TransferFunds({ open, onOpenChange, currentBalance, onTransferSu
             if (freelancerError && freelancerError.code !== "PGRST116") {
                 throw new Error("Failed to fetch recipient wallet")
             }
-            // Use secure RPC to create-or-update wallets (bypasses RLS for server-side logic)
-            const newClientBalance = clientBalance - transferAmount
+            // Use secure RPC to apply deltas so updates are additive and RLS-safe
             const { error: clientRpcError } = await supabase.rpc("create_or_update_wallet", {
                 p_user_id: session?.user?.id,
-                p_available_balance: newClientBalance,
+                p_amount_delta: -transferAmount,
                 p_locked_balance: 0,
             })
 
@@ -114,11 +113,9 @@ export function TransferFunds({ open, onOpenChange, currentBalance, onTransferSu
                 throw new Error("Failed to update/create client wallet: " + clientRpcError.message)
             }
 
-            const freelancerBalance = freelancerWallet?.available_balance || 0
-            const newFreelancerBalance = freelancerBalance + transferAmount
             const { error: freelancerRpcError } = await supabase.rpc("create_or_update_wallet", {
                 p_user_id: freelancerProfile.id,
-                p_available_balance: newFreelancerBalance,
+                p_amount_delta: transferAmount,
                 p_locked_balance: freelancerWallet?.locked_balance || 0,
             })
 

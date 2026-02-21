@@ -260,9 +260,15 @@ id, title, created_at,
                                                 {task.status === 'SUBMITTED' ? 'Under Review' : 'In Progress'}
                                             </Badge>
                                             <div className="flex gap-2">
-                                                <Link to={`/chat/${task.id}`}>
-                                                    <Button size="sm" variant="outline">Message Client</Button>
-                                                </Link>
+                                                {task.client_id ? (
+                                                    <Link to={`/chat/${task.id}/${task.client_id}`}>
+                                                        <Button size="sm" variant="outline">Message Client</Button>
+                                                    </Link>
+                                                ) : (
+                                                    <Link to={`/chat/${task.id}`}>
+                                                        <Button size="sm" variant="outline">Message Client</Button>
+                                                    </Link>
+                                                )}
                                                 {task.status === 'ASSIGNED' && (
                                                     <Button
                                                         size="sm"

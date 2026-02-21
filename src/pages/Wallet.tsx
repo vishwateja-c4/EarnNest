@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowDownRight, Lock, Unlock, RefreshCw } from "lucide-react"
+import { ArrowDownRight, Lock, RefreshCw } from "lucide-react"
 import { PaymentGateway } from "@/components/PaymentGateway"
 import { TransferFunds } from "@/components/TransferFunds"
 
@@ -23,9 +23,10 @@ export default function WalletView() {
     const [refreshing, setRefreshing] = useState(false)
     const [paymentOpen, setPaymentOpen] = useState(false)
     const [transferOpen, setTransferOpen] = useState(false)
+    const [transactions, setTransactions] = useState<any[]>([])
 
-    const fetchWallet = async () => {
-        if (!session?.user?.id) return
+    const fetchWallet = useCallback(async () => {
+        if (!session) return
 
         const { data, error } = await supabase
             .from('wallets')
@@ -44,10 +45,36 @@ export default function WalletView() {
             console.error("Error fetching wallet:", error)
         }
         setLoading(false)
-    }
+    }, [session])
+
+    const fetchTransactions = useCallback(async () => {
+        if (!session) return
+
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false })
+                .limit(20)
+
+            if (error) {
+                console.error('Error fetching transactions:', error)
+                return
+            }
+
+            setTransactions(data || [])
+        } catch (err) {
+            console.error('Failed to fetch transactions', err)
+        }
+    }, [session])
 
     useEffect(() => {
-        fetchWallet()
+        const load = async () => {
+            await fetchWallet()
+            await fetchTransactions()
+        }
+        load()
 
         // Subscribe to real-time wallet updates
         const subscription = supabase
@@ -67,10 +94,28 @@ export default function WalletView() {
             )
             .subscribe()
 
+        // Subscribe to transactions for this user
+        const txSub = supabase
+            .channel(`transactions-${session?.user?.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'transactions',
+                    filter: `user_id=eq.${session?.user?.id}`,
+                },
+                () => {
+                    fetchTransactions()
+                }
+            )
+            .subscribe()
+
         return () => {
             subscription.unsubscribe()
+            txSub.unsubscribe()
         }
-    }, [session?.user?.id])
+    }, [fetchWallet, fetchTransactions, session])
 
     const handlePaymentSuccess = (amount: number) => {
         setAvailableBalance(prev => prev + amount)
@@ -78,6 +123,16 @@ export default function WalletView() {
 
     const handleTransferSuccess = (amount: number) => {
         setAvailableBalance(prev => prev - amount)
+    }
+
+    const handlePaymentSuccessWithRefresh = (amount: number) => {
+        handlePaymentSuccess(amount)
+        fetchTransactions()
+    }
+
+    const handleTransferSuccessWithRefresh = (amount: number) => {
+        handleTransferSuccess(amount)
+        fetchTransactions()
     }
 
     const handleRefresh = async () => {
@@ -138,36 +193,38 @@ export default function WalletView() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Recent Transactions</CardTitle>
-                        <CardDescription>Your complete financial history on the platform. (Coming Soon)</CardDescription>
+                        <CardDescription>Your recent deposits, transfers and escrow activity.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {MOCK_TRANSACTIONS.map(tx => (
-                                <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg bg-background opacity-70">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-full ${tx.type === 'deposit' ? 'bg-green-100 text-green-600' :
-                                            tx.type === 'escrow_lock' ? 'bg-orange-100 text-orange-600' :
-                                                'bg-blue-100 text-blue-600'
-                                            }`}>
-                                            {tx.type === 'deposit' ? <ArrowDownRight className="h-5 w-5" /> :
-                                                tx.type === 'escrow_lock' ? <Lock className="h-5 w-5" /> :
-                                                    <Unlock className="h-5 w-5" />
-                                            }
+                            {(transactions.length > 0 ? transactions : MOCK_TRANSACTIONS).map((tx: any) => {
+                                const type = tx.type || tx.desc || 'transaction'
+                                const isCredit = type === 'deposit' || type === 'transfer_received' || type === 'escrow_release'
+                                const sign = isCredit ? '+' : '-'
+                                const amount = tx.amount || 0
+                                const desc = tx.description || tx.desc || type
+                                const date = tx.created_at || tx.date
+
+                                return (
+                                    <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg bg-background opacity-70">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-2 rounded-full ${isCredit ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                                                {isCredit ? <ArrowDownRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5 rotate-180" />}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-semibold text-sm md:text-base">{desc}</h4>
+                                                <p className="text-xs text-muted-foreground">{new Date(date).toLocaleString()}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="font-semibold text-sm md:text-base">{tx.desc}</h4>
-                                            <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</p>
+                                        <div className="text-right">
+                                            <div className={`font-bold ${isCredit ? 'text-green-600' : 'text-orange-500'}`}>
+                                                {sign}₹{amount}
+                                            </div>
+                                            <Badge variant="outline" className="mt-1 text-[10px] uppercase tracking-wider">{tx.status || 'completed'}</Badge>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`font-bold ${tx.type === 'deposit' || tx.type === 'escrow_release' ? 'text-green-600' : 'text-orange-500'
-                                            }`}>
-                                            {tx.type === 'escrow_lock' ? '-' : '+'}₹{tx.amount}
-                                        </div>
-                                        <Badge variant="outline" className="mt-1 text-[10px] uppercase tracking-wider">{tx.status}</Badge>
-                                    </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     </CardContent>
                 </Card>
@@ -176,14 +233,14 @@ export default function WalletView() {
             <PaymentGateway 
                 open={paymentOpen} 
                 onOpenChange={setPaymentOpen}
-                onPaymentSuccess={handlePaymentSuccess}
+                onPaymentSuccess={handlePaymentSuccessWithRefresh}
             />
 
             <TransferFunds 
                 open={transferOpen} 
                 onOpenChange={setTransferOpen}
                 currentBalance={availableBalance}
-                onTransferSuccess={handleTransferSuccess}
+                onTransferSuccess={handleTransferSuccessWithRefresh}
             />
         </>
     )
