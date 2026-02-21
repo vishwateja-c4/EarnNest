@@ -7,16 +7,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ProfilePreview } from "@/components/ProfilePreview"
+import { TaskRecommender } from "@/components/TaskRecommender"
+
+interface Task {
+    id: string
+    title: string
+    description: string
+    category: string
+    budget: number
+    deadline: string
+    required_skills: string[]
+    priority_level: string
+    status: string
+    client_id: string
+    profiles?: { full_name: string }
+}
 
 export default function TaskFeed() {
-    const [tasks, setTasks] = useState<any[]>([])
+    const [tasks, setTasks] = useState<Task[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [category, setCategory] = useState("all")
     const [maxBudget, setMaxBudget] = useState("")
     const [priority, setPriority] = useState("any")
+    const [chatOpen, setChatOpen] = useState(false)
 
-    const pruneExpired = (list: any[]) => {
+    const pruneExpired = (list: Task[]) => {
         const now = Date.now()
         return list.filter(task => task.status === "OPEN" && new Date(task.deadline).getTime() > now)
     }
@@ -121,9 +137,14 @@ export default function TaskFeed() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full sm:max-w-md bg-background"
                     />
-                    <Link to="/tasks/create" className="w-full sm:w-auto">
-                        <Button className="w-full sm:w-auto">Post a New Task</Button>
-                    </Link>
+                    <div className="flex gap-2 w-full sm:w-auto flex-col sm:flex-row">
+                        <Button onClick={() => setChatOpen(true)} variant="outline" className="w-full sm:w-auto">
+                            🤖 AI Task Finder
+                        </Button>
+                        <Link to="/tasks/create" className="w-full sm:w-auto">
+                            <Button className="w-full sm:w-auto">Post a New Task</Button>
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="grid gap-4">
@@ -174,6 +195,8 @@ export default function TaskFeed() {
                     )}
                 </div>
             </main>
+
+            <TaskRecommender tasks={tasks} open={chatOpen} onOpenChange={setChatOpen} />
         </div>
     )
 }
