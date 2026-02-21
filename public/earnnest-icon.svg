@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="24" fill="#F3FAFF" />
+  <g stroke="#2D6BFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <ellipse cx="100" cy="148" rx="54" ry="20" />
+    <ellipse cx="100" cy="102" rx="34" ry="48" />
+    <path d="M90 118c0 8 20 8 20 0" />
+    <path d="M88 92c4-10 32-10 32 6 0 18-34 14-34 32 0 16 26 18 34 8" />
+    <path d="M100 72v76" />
+    <path d="M62 150l-18 10m36-4l-18 10" />
+    <path d="M140 150l18 10m-36-4l18 10" />
+    <path d="M138 50l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10z" />
+    <path d="M72 54l3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8z" />
+    <path d="M150 86l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z" />
+  </g>
+  <text x="100" y="196" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" font-weight="700" fill="#2D6BFF">EARNNEST</text>
+</svg>
